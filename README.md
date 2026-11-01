@@ -58,12 +58,4 @@ Puedes repetir `--expected-id` con varios vídeos; se verifican juntos en una ú
 - Cuota predeterminada (junio de 2026): 100 llamadas diarias a `search.list`, 1 llamada por página de hasta 50 resultados; cuota general predeterminada de 10.000 unidades/día para `videos.list` y otros métodos. Comprueba las cuotas reales de tu proyecto en Google Cloud.
 - Los horarios se guardan en UTC. Las claves quedan en el entorno, nunca en los JSON de salida.
 
-## Pruebas sin API key
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-Estas pruebas usan respuestas simuladas. **No validan todavía la cobertura real de YouTube ni la latencia de indexación**; eso requiere ejecutar los comandos anteriores con una clave propia.
-
 Documentación oficial: [search.list](https://developers.google.com/youtube/v3/docs/search/list) · [videos.list](https://developers.google.com/youtube/v3/docs/videos/list) · [cuotas](https://developers.google.com/youtube/v3/determine_quota_cost).
