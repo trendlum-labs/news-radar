@@ -1,6 +1,7 @@
 """YouTube Data API search for recent news coverage."""
 
 from datetime import datetime, timedelta, timezone
+from itertools import zip_longest
 from os import getenv
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -30,8 +31,9 @@ def search_videos(
     order: str = "date",
     language: str | None = None,
     region: str | None = None,
+    long_form: bool = True,
 ) -> list[dict]:
-    """Find recent videos about an event. Missing results do not prove no videos exist."""
+    """Find recent videos. By default, return only videos of at least 4 minutes."""
     key = api_key or getenv("YOUTUBE_API_KEY") or _key_from_dotenv()
     if not key:
         raise ValueError("YOUTUBE_API_KEY is required")
@@ -55,28 +57,48 @@ def search_videos(
     if region:
         params["regionCode"] = region.upper()
 
-    url = "https://www.googleapis.com/youtube/v3/search?" + urlencode(params)
-    try:
-        with urlopen(url, timeout=15) as response:
-            data = json.load(response)
-    except HTTPError as error:
-        # Never expose error.url: the URL contains the API key.
-        raise RuntimeError(f"YouTube API returned HTTP {error.code}") from None
-    except (URLError, TimeoutError):
-        raise RuntimeError("YouTube API request failed") from None
+    groups = []
+    for duration in (("medium", "long") if long_form else (None,)):
+        request_params = {**params}
+        if duration:
+            request_params["videoDuration"] = duration
+        url = "https://www.googleapis.com/youtube/v3/search?" + urlencode(request_params)
+        try:
+            with urlopen(url, timeout=15) as response:
+                data = json.load(response)
+        except HTTPError as error:
+            # Never expose error.url: the URL contains the API key.
+            raise RuntimeError(f"YouTube API returned HTTP {error.code}") from None
+        except (URLError, TimeoutError):
+            raise RuntimeError("YouTube API request failed") from None
 
-    videos = []
-    for item in data.get("items", []):
-        video_id = item.get("id", {}).get("videoId")
-        if not video_id:
-            continue
-        snippet = item.get("snippet", {})
-        videos.append({
-            "id": video_id,
-            "title": snippet.get("title", ""),
-            "channel": snippet.get("channelTitle", ""),
-            "published_at": snippet.get("publishedAt"),
-            "description": snippet.get("description", ""),
-            "url": f"https://www.youtube.com/watch?v={video_id}",
-        })
-    return videos
+        videos = []
+        for item in data.get("items", []):
+            video_id = item.get("id", {}).get("videoId")
+            if not video_id:
+                continue
+            snippet = item.get("snippet", {})
+            videos.append({
+                "id": video_id,
+                "title": snippet.get("title", ""),
+                "channel": snippet.get("channelTitle", ""),
+                "published_at": snippet.get("publishedAt"),
+                "description": snippet.get("description", ""),
+                "url": f"https://www.youtube.com/watch?v={video_id}",
+            })
+        groups.append(videos)
+
+    if order == "date":
+        combined = sorted(
+            (video for group in groups for video in group),
+            key=lambda video: video["published_at"] or "",
+            reverse=True,
+        )
+    else:
+        combined = [
+            video
+            for position in zip_longest(*groups)
+            for video in position
+            if video is not None
+        ]
+    return list({video["id"]: video for video in combined}.values())[:max_results]
