@@ -2,10 +2,23 @@
 
 from datetime import datetime, timedelta, timezone
 from os import getenv
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import urlopen
 import json
+
+
+
+def _key_from_dotenv() -> str | None:
+    path = Path(__file__).resolve().parents[1] / ".env"
+    if not path.is_file():
+        return None
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        name, separator, value = line.partition("=")
+        if separator and name.strip() == "YOUTUBE_API_KEY":
+            return value.strip().strip('"').strip("'") or None
+    return None
 
 
 def search_videos(
@@ -19,7 +32,7 @@ def search_videos(
     region: str | None = None,
 ) -> list[dict]:
     """Find recent videos about an event. Missing results do not prove no videos exist."""
-    key = api_key or getenv("YOUTUBE_API_KEY")
+    key = api_key or getenv("YOUTUBE_API_KEY") or _key_from_dotenv()
     if not key:
         raise ValueError("YOUTUBE_API_KEY is required")
     if not query.strip():
