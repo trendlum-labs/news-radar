@@ -1,4 +1,4 @@
-"""Search recent YouTube videos and filter by actual duration."""
+"""Search recent YouTube videos and classify them by duration."""
 
 import json
 import re
@@ -50,9 +50,8 @@ def search_videos(
     order: str = "date",
     language: str | None = None,
     region: str | None = None,
-    long_form: bool = True,
 ) -> list[dict]:
-    """One search; one videos.list to retrieve durations. Long form is >= 4 min."""
+    """One search plus one duration lookup; return all videos with categories."""
     key = api_key or getenv("YOUTUBE_API_KEY") or _key_from_dotenv()
     if not key:
         raise ValueError("YOUTUBE_API_KEY is required")
@@ -107,8 +106,12 @@ def search_videos(
     }
 
     for video in videos:
-        video["duration_seconds"] = durations.get(video["id"])
-
-    if long_form:
-        return [v for v in videos if v["duration_seconds"] is not None and v["duration_seconds"] >= 240]
+        seconds = durations.get(video["id"])
+        video["duration_seconds"] = seconds
+        video["duration_category"] = (
+            "unknown" if seconds is None
+            else "short" if seconds <= 180
+            else "short_video" if seconds <= 480
+            else "long_video"
+        )
     return videos
