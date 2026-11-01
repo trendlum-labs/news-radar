@@ -97,17 +97,17 @@ def search_videos(
 
     details = _get("videos", {
         "key": key,
-        "part": "contentDetails",
+        "part": "contentDetails,statistics",
         "id": ",".join(video["id"] for video in videos),
     })
-    durations = {
-        item["id"]: _duration_seconds((item.get("contentDetails") or {}).get("duration", ""))
-        for item in details.get("items", [])
-    }
+    details_by_id = {item["id"]: item for item in details.get("items", [])}
 
     for video in videos:
-        seconds = durations.get(video["id"])
+        item = details_by_id.get(video["id"], {})
+        seconds = _duration_seconds((item.get("contentDetails") or {}).get("duration", ""))
+        view_count = (item.get("statistics") or {}).get("viewCount")
         video["duration_seconds"] = seconds
+        video["view_count"] = int(view_count) if view_count is not None else None
         video["duration_category"] = (
             "unknown" if seconds is None
             else "short" if seconds <= 180
