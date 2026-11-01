@@ -47,7 +47,7 @@ def search_videos(
     api_key: str | None = None,
     hours: int = 24,
     max_results: int = 50,
-    order: str = "date",
+    order: str = "relevance",
     language: str | None = None,
     region: str | None = None,
 ) -> list[dict]:
